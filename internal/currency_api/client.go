@@ -74,8 +74,8 @@ func (c *Client) GetCurrency(from, to string, date time.Time) (float64, error) {
 }
 
 func (c *Client) getCurrencyFromCache(from, to string, date time.Time) float64 {
-	if _, ok := c.currencyCache[from+sep+to+sep+date.Format(dateFormat)]; ok {
-		return c.currencyCache[from+to+date.Format(dateFormat)]
+	if v, ok := c.currencyCache[from+sep+to+sep+date.Format(dateFormat)]; ok {
+		return v
 	}
 
 	return 0
