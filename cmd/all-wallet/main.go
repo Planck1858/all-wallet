@@ -1,55 +1,77 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
-	"log"
-	"time"
+	"embed"
+	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/tidwall/pretty"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
-	tele "gopkg.in/telebot.v3"
-
-	cfg "github.com/Planck1858/all-wallet/internal/config"
-	"github.com/Planck1858/all-wallet/internal/tinkoff"
-	"github.com/Planck1858/all-wallet/pkg/config"
+	"github.com/Planck1858/all-wallet/internal/app"
+	"github.com/Planck1858/all-wallet/internal/config"
 )
 
+//go:embed migrations/*.sql
+var embedMigrations embed.FS
+var cfgFlag string
+
+func init() {
+	cfgFlag, _ = os.LookupEnv("ALL_WALLET_CONFIG")
+	if cfgFlag == "" {
+		cfgFlag = "config.yaml"
+	}
+}
+
 func main() {
-	ctx := context.Background()
+	stopCh := make(chan os.Signal, 1)
+	signal.Notify(stopCh, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
 
-	conf := cfg.Config{}
-	err := config.NewConfig("config.yaml", &conf)
+	conf := config.Config{}
+	err := config.NewConfig(cfgFlag, &conf)
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Errorf("config init: %v", err))
 	}
 
-	tc := tinkoff.New(conf.TinkoffToken)
-
-	bot, err := tele.NewBot(tele.Settings{
-		Token:  conf.BotToken,
-		Poller: &tele.LongPoller{Timeout: 10 * time.Second},
-	})
+	zapLog, err := loggerLevel(conf.DebugMode)
 	if err != nil {
-		log.Fatal(err)
+		panic(fmt.Errorf("logger init: %v", err))
+	}
+	defer zapLog.Sync()
+
+	log := zapLog.Sugar()
+	log.Infof("config print: %s", conf)
+
+	log.Info("application initialization")
+	a, err := app.New(log, conf, embedMigrations)
+	if err != nil {
+		panic(fmt.Errorf("app init: %v", err))
 	}
 
-	bot.Handle("/getAccounts", func(c tele.Context) error {
-		log.Println("User send /getAccounts")
+	log.Info("starting application")
+	a.Run()
 
-		acc, err := tc.GetAccounts(ctx)
-		if err != nil {
-			return err
-		}
+	stop := <-stopCh
+	log.Infof("catch stop signal: %v", stop)
 
-		accRaw, err := json.Marshal(acc)
-		if err != nil {
-			return err
-		}
-		accRaw = pretty.Pretty(accRaw)
+	log.Info("finishing application")
+	err = a.Stop()
+	if err != nil {
+		panic(fmt.Errorf("app stop: %v", err))
+	}
+}
 
-		return c.Send(string(accRaw))
-	})
+func loggerLevel(debug bool) (*zap.Logger, error) {
+	var loggerConfig zap.Config
+	if debug {
+		loggerConfig = zap.NewDevelopmentConfig()
+	}
 
-	bot.Start()
+	loggerConfig = zap.NewProductionConfig()
+	loggerConfig.EncoderConfig.TimeKey = "timestamp"
+	loggerConfig.EncoderConfig.EncodeTime = zapcore.RFC3339TimeEncoder
+
+	return loggerConfig.Build()
 }

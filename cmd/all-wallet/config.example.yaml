@@ -1,2 +1,8 @@
-botToken: "api token"
-tinkoffToken: "api token"
+botToken: "api-token"
+debugMode: false
+db:
+  address: "localhost"
+  database: "all-wallet"
+  user: "admin"
+  password: "1234"
+  sslMode: "disable"
