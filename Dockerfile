@@ -22,6 +22,7 @@ FROM alpine:3.17 as app
 WORKDIR /app
 
 COPY --from=builder /go/src/all-wallet/bin/all-wallet .
+COPY config.yaml config.yaml
 
-ENTRYPOINT ["/app/predictive-calls-api"]
+ENTRYPOINT ["/app/all-wallet"]
 
