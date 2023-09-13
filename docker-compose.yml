@@ -1,0 +1,28 @@
+version: '3.5'
+
+services:
+#### all-wallet ##########################
+  all-wallet:
+    image: localhost/app
+    build:
+      target: app
+      dockerfile: Dockerfile
+      context: .
+
+### PostgreSQL ##########################
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_PASSWORD: ${ALLWALLET_PG_PASS:-secret}
+      POSTGRES_USER: ${ALLWALLET_PG_USER:-allwallet_user}
+      POSTGRES_DB: ${ALLWALLET_PG_DATABASE:-allwallet}
+    volumes:
+      - db:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    restart: always
+
+#### Volumes #######################################
+volumes:
+  db:
+

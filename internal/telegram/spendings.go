@@ -69,26 +69,6 @@ func (t *Telegram) AddSpendingHandler(c telebot.Context) (err error) {
 	return nil
 }
 
-// func (t *Telegram) SubSpendingHandler(c telebot.Context) (err error) {
-// 	ctx := context.Background()
-//
-// 	spend, err := getSpendingFromStr(c.Message().Text)
-// 	if err != nil {
-// 		return errors.Wrap(err, "invalid spending format")
-// 	}
-//
-// 	if spend.currency == "" {
-// 		spend.currency = consts.DefaultCurrency
-// 	}
-//
-// 	err = t.store.AddSpending(ctx, c.Sender().ID, -spend.amount, spend.currency, spend.date)
-// 	if err != nil {
-// 		return errors.Wrap(err, "can't sub spending")
-// 	}
-//
-// 	return c.Send("", emptyOpt)
-// }
-
 // getSpendingFromStr - str format should be "+ 123.4 currency date";
 // operator can be +/-; currency is uds/eur/rub etc.; date is dd.mm.yyyy or dd.mm with current year
 func getSpendingFromStr(str string) (spending spending, err error) {
