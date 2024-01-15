@@ -3,6 +3,8 @@ package currency_api
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -20,9 +22,12 @@ type Client struct {
 	log           *zap.SugaredLogger
 	client        *http.Client
 	currencyCache map[string]float64 // key: usd-eur-2023-12-30, value: cash
+	allCurrencies map[string]struct{}
+
+	rwMut *sync.RWMutex
 }
 
-func New(log *zap.SugaredLogger) *Client {
+func New(log *zap.SugaredLogger, allCurrencies map[string]struct{}) *Client {
 	return &Client{
 		log: log,
 		client: &http.Client{
@@ -30,6 +35,8 @@ func New(log *zap.SugaredLogger) *Client {
 			Timeout:   time.Second * 10,
 		},
 		currencyCache: make(map[string]float64),
+		allCurrencies: allCurrencies,
+		rwMut:         &sync.RWMutex{},
 	}
 }
 
@@ -40,14 +47,14 @@ func (c *Client) GetCurrency(from, to string, date time.Time) (float64, error) {
 	}
 
 	var dateStr string
-	now := time.Now().UTC().Round(time.Minute)
-	if date.Round(time.Minute).Equal(now) {
+	now := time.Now().UTC().Round(time.Hour * 24)
+	if date.Round(time.Hour * 24).Equal(now) {
 		dateStr = "latest"
 	} else {
 		dateStr = date.Format(dateFormat)
 	}
 
-	url := apiV1Url + "/" + dateStr + "/currencies/" + from + "/" + to + ".json"
+	url := apiV1Url + "/" + dateStr + "/currencies/" + strings.ToLower(from) + "/" + strings.ToLower(to) + ".json"
 	resp, err := c.client.Get(url)
 	if err != nil {
 		return 0, errors.Wrap(err, "get currency")
@@ -55,7 +62,7 @@ func (c *Client) GetCurrency(from, to string, date time.Time) (float64, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return 0, errors.Errorf("status code: %d", resp.StatusCode)
+		return 0, errors.Errorf("status code: %d, url: %s", resp.StatusCode, url)
 	}
 
 	respData := make(map[string]interface{})
@@ -73,8 +80,17 @@ func (c *Client) GetCurrency(from, to string, date time.Time) (float64, error) {
 	return 0, errors.New("unknown currency")
 }
 
+func (c *Client) CheckCurrency(cur string) bool {
+	_, ok := c.allCurrencies[strings.ToUpper(cur)]
+	return ok
+}
+
 func (c *Client) getCurrencyFromCache(from, to string, date time.Time) float64 {
-	if v, ok := c.currencyCache[from+sep+to+sep+date.Format(dateFormat)]; ok {
+	c.rwMut.RLock()
+	defer c.rwMut.RUnlock()
+
+	v, ok := c.currencyCache[from+sep+to+sep+date.Format(dateFormat)]
+	if ok {
 		return v
 	}
 
@@ -82,5 +98,7 @@ func (c *Client) getCurrencyFromCache(from, to string, date time.Time) float64 {
 }
 
 func (c *Client) setCurrencyToCache(from, to string, cash float64, date time.Time) {
+	c.rwMut.Lock()
 	c.currencyCache[from+sep+to+sep+date.Format(dateFormat)] = cash
+	c.rwMut.Unlock()
 }

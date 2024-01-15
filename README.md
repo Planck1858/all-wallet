@@ -17,8 +17,9 @@
 - **/settings** - Setting up your account
 
 ### TODO
-1. Exchange rates functional
-2. Spendings functional
-3. Accounts functional
-4. Statistics with charts - accounts and spendings
-5. Triggers for exchange rates
+1. Live time exchange course (accounts and spendings total sum include)
+2. Exchange rates functional
+3. Spendings functional
+4. Accounts functional 
+5. Statistics with charts - accounts and spendings
+6. Triggers for exchange rates

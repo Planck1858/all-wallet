@@ -14,7 +14,7 @@ func (t *Telegram) StartHandler(c telebot.Context) (err error) {
 	ctx := context.Background()
 	userId := c.Sender().ID
 
-	method := "telegram.StartHandler()"
+	const method = "telegram.StartHandler()"
 	t.log.With("method", method, "userId", userId).Info("started...")
 	defer func() {
 		t.logDefer(method, err, c)
@@ -38,12 +38,7 @@ func (t *Telegram) StartHandler(c telebot.Context) (err error) {
 		}
 	}
 
-	btnMenu.Reply(
-		btnMenu.Row(btnExchangeRates),
-		btnMenu.Row(btnAccounts),
-		btnMenu.Row(btnSpendings),
-		btnMenu.Row(btnInfo),
-	)
+	button.Reply(menuBtn.ButtonPerRow()...)
 
-	return c.Send(startMsg, btnMenu, telebot.ModeHTML)
+	return c.Send(startMsg, button, telebot.ModeHTML)
 }

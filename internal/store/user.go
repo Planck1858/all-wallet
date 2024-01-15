@@ -71,7 +71,12 @@ func (s *store) CreateUser(ctx context.Context, u *User) (err error) {
 		return err
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "commit transaction")
+	}
+
+	return nil
 }
 
 func (s *store) ExistUser(ctx context.Context, userId int32) (ok bool, err error) {
@@ -93,43 +98,55 @@ func (s *store) DeleteUser(ctx context.Context, userTelegramId int32) error {
 	if err != nil {
 		return err
 	}
-
 	defer func() {
 		if err != nil {
 			_ = tx.Rollback()
 		}
 	}()
 
-	// select user to delete
-	qSelectUser := sq.Select("*").
+	qUserId, qUserIdArgs, err := sq.Select("id").
 		From(userTable).
-		Where(sq.Eq{"telegram_id": userTelegramId}).
-		PlaceholderFormat(sq.Dollar)
-
-	var user User
-	err = s.db.GetSqTx(tx, ctx, &user, qSelectUser)
+		Where("telegram_id = ?", userTelegramId).
+		PlaceholderFormat(sq.Dollar).ToSql()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "build get user id query")
+	}
+
+	qSpendingId, qSpendingIdArgs, err := sq.Select("id").
+		From(spendingTable).
+		Where("user_id = ("+qUserId+")", qUserIdArgs...).
+		PlaceholderFormat(sq.Dollar).ToSql()
+	if err != nil {
+		return errors.Wrap(err, "build get spending id query")
 	}
 
 	// delete user spendigs
-	qDelSpendRecords := sq.Delete(spendingTable).
-		Where(sq.Eq{"user_id": userTelegramId}).
+	qDelSpendRecords := sq.Delete(spendingRecordTable).
+		Where("spending_id = ("+qSpendingId+")", qSpendingIdArgs...).
 		PlaceholderFormat(sq.Dollar)
 
 	err = s.db.DeleteSqTx(tx, ctx, qDelSpendRecords)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "delete spending records")
+	}
+
+	qDelSpending := sq.Delete(spendingTable).
+		Where("user_id = ("+qUserId+")", qUserIdArgs...).
+		PlaceholderFormat(sq.Dollar)
+
+	err = s.db.DeleteSqTx(tx, ctx, qDelSpending)
+	if err != nil {
+		return errors.Wrap(err, "delete spending")
 	}
 
 	// delete user accounts
 	qDelAccounts := sq.Delete(accountTable).
-		Where(sq.Eq{"user_id": userTelegramId}).
+		Where("user_id = ("+qUserId+")", qUserIdArgs...).
 		PlaceholderFormat(sq.Dollar)
 
 	err = s.db.DeleteSqTx(tx, ctx, qDelAccounts)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "delete accounts")
 	}
 
 	// delete user
@@ -139,8 +156,13 @@ func (s *store) DeleteUser(ctx context.Context, userTelegramId int32) error {
 
 	err = s.db.DeleteSqTx(tx, ctx, qDelUser)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "delete user")
 	}
 
-	return tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		return errors.Wrap(err, "commit transaction")
+	}
+
+	return nil
 }

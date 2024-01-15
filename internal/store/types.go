@@ -2,9 +2,11 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/Planck1858/all-wallet/internal/consts"
+	"github.com/jmoiron/sqlx"
 )
 
 const (
@@ -15,6 +17,8 @@ const (
 )
 
 type Store interface {
+	BeginTx(ctx context.Context, txOpt *sql.TxOptions) (*sqlx.Tx, error)
+
 	GetUser(ctx context.Context, userId int32) (u *User, err error)
 	CreateUser(ctx context.Context, u *User) error
 	ExistUser(ctx context.Context, userId int32) (ok bool, err error)
@@ -23,6 +27,8 @@ type Store interface {
 	GetLastSpendingRecords(ctx context.Context, userId int32) ([]SpendingRecord, error)
 	GetSpendingTotal(ctx context.Context, userId int32) (total float64, currency string, err error)
 	AddSpending(ctx context.Context, userId int64, amount float64, currency string, date time.Time) error
+	AddSpendings(ctx context.Context, userId int64, req []AddSpendingsReq) error
+	SetSpendingsDefaultCurrency(ctx context.Context, userId int32, currency string) (err error)
 }
 
 type User struct {
@@ -48,6 +54,12 @@ type Spending struct {
 	Currency string           `db:"currency"`
 	UserID   int32            `db:"user_id"`
 	Records  []SpendingRecord `db:"-"`
+}
+
+type AddSpendingsReq struct {
+	Amount   float64
+	Currency string
+	Date     time.Time
 }
 
 type SpendingRecord struct {

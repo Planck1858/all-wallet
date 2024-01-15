@@ -1,8 +1,11 @@
 package app
 
 import (
+	"bufio"
 	"embed"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	pgxw "github.com/Planck1858/pgxwrapper"
@@ -67,7 +70,12 @@ func New(log *zap.SugaredLogger, conf config.Config, embedMigrations embed.FS) (
 	}
 
 	// Currency client
-	currencyClient := currency_api.New(log)
+	allCurrencies, err := getAllCurrencies()
+	if err != nil {
+		return nil, errors.Wrap(err, "get all currencies")
+	}
+
+	currencyClient := currency_api.New(log, allCurrencies)
 
 	// Telegram bot
 	tgBot := telegram.New(log, store.New(log, db, currencyClient), botClient, currencyClient)
@@ -103,4 +111,19 @@ func initMigrations(db pgxw.PgDatabase, embedMigrations embed.FS) error {
 	}
 
 	return nil
+}
+
+func getAllCurrencies() (map[string]struct{}, error) {
+	f, err := os.Open("all_currencies.txt")
+	if err != nil {
+		return nil, errors.Wrap(err, "open file")
+	}
+
+	allCurrencies := make(map[string]struct{})
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		allCurrencies[strings.TrimSpace(scanner.Text())] = struct{}{}
+	}
+
+	return allCurrencies, nil
 }

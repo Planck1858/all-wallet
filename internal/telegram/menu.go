@@ -7,18 +7,13 @@ import (
 func (t *Telegram) MenuHandler(c telebot.Context) (err error) {
 	userId := c.Sender().ID
 
-	method := "telegram.MenuHandler()"
+	const method = "telegram.MenuHandler()"
 	t.log.With("method", method, "userId", userId).Info("started...")
 	defer func() {
 		t.logDefer(method, err, c)
 	}()
 
-	btnMenu.Reply(
-		btnMenu.Row(btnExchangeRates),
-		btnMenu.Row(btnAccounts),
-		btnMenu.Row(btnSpendings),
-		btnMenu.Row(btnInfo),
-	)
+	button.Reply(menuBtn.ButtonPerRow()...)
 
-	return c.Send("menu", btnMenu)
+	return c.Send("Menu", button, telebot.OneTimeKeyboard)
 }

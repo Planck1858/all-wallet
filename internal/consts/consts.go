@@ -1,7 +1,10 @@
 package consts
 
 const (
-	DefaultCurrency = "rub"
+	DefaultCurrency = "usd"
+
+	FloatPrecision = 10
+	TotalPrecision = 6
 )
 
 type AccountType string

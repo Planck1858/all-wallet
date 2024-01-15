@@ -14,7 +14,7 @@ services:
     image: postgres
     environment:
       POSTGRES_PASSWORD: ${ALLWALLET_PG_PASS:-secret}
-      POSTGRES_USER: ${ALLWALLET_PG_USER:-allwallet_user}
+      POSTGRES_USER: ${ALLWALLET_PG_USER:-admin}
       POSTGRES_DB: ${ALLWALLET_PG_DATABASE:-allwallet}
     volumes:
       - db:/var/lib/postgresql/data

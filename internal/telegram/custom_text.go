@@ -1,32 +1,41 @@
 package telegram
 
 import (
+	"fmt"
 	"strings"
 
 	"gopkg.in/telebot.v3"
 )
 
 func (t *Telegram) CustomTextHandler(c telebot.Context) (err error) {
+	const method = "telegram.CustomTextHandler()"
+
 	text := strings.TrimSpace(c.Text())
-	t.log.Info(text)
+	t.log.Info(method + ": " + text)
 
 	if strings.HasPrefix(text, "/") {
 		return nil
 	}
 
-	// TODO:
-	// if strings.HasPrefix(strings.TrimSpace(text), addAccounting) {
+	if c.Message().IsReply() {
+		key := fmt.Sprintf("%v-%v", replyCacheKey, c.Sender().ID)
+
+		_, found := t.cache.get(key)
+		if found {
+			defer t.cache.delete(key)
+
+			return t.SelectAnotherCurrencyResponseHandler(c)
+		}
+	}
+
+	// TODO
+	// if strings.HasPrefix(strings.TrimSpace(text), addAccounting) || strings.HasPrefix(text, subtractAccounting) {
 	// 	return t.AddAccountingHandler(c)
-	// } else if strings.HasPrefix(text, subtractAccounting) {
-	// 	return t.SubAccountingHandler(c)
 	// }
 
-	if strings.HasPrefix(strings.TrimSpace(text), addSpendings) {
+	if strings.HasPrefix(strings.TrimSpace(text), addSpendingsPref) || strings.HasPrefix(text, subtractSpendingsPref) {
 		return t.AddSpendingHandler(c)
 	}
-	// } else if strings.HasPrefix(text, subtractSpendings) {
-	// return t.SubSpendingHandler(c)
-	// }
 
 	return nil
 }

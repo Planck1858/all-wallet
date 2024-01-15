@@ -19,8 +19,9 @@ var embedMigrations embed.FS
 var cfgFlag string
 
 func init() {
-	cfgFlag, _ = os.LookupEnv("ALL_WALLET_CONFIG")
-	if cfgFlag == "" {
+	var ok bool
+	cfgFlag, ok = os.LookupEnv("ALL_WALLET_CONFIG")
+	if !ok {
 		cfgFlag = "config.yaml"
 	}
 }
